@@ -1,0 +1,665 @@
+<title>Deyomi Price Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deyomi Calc">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Inter:wght@300;400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --fg: #1C1C1E;
+    --muted: #8E8E93;
+    --card: #FFFFFF;
+    --gold: #B8965A;
+    --gold-light: rgba(184,150,90,0.12);
+    --separator: rgba(60,60,67,0.12);
+    --input-bg: #E8E8ED;
+    --result-bg: #1C1C1E;
+    --result-fg: #F2F2F7;
+    --result-gold: #D4B87C;
+    --pill-bg: #E8E8ED;
+    --pill-active-bg: #B8965A;
+    --pill-active-fg: #FFFFFF;
+    --group-label: #6C6C70;
+    --green: #34C759;
+    --red: #FF3B30;
+    --blue: #007AFF;
+    --toast-bg: #1C1C1E;
+    --toast-fg: #F2F2F7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #000000; --fg: #F2F2F7; --muted: #8E8E93;
+      --card: #1C1C1E; --separator: rgba(84,84,88,0.65);
+      --input-bg: #2C2C2E;
+      --result-bg: #B8965A; --result-fg: #1C1C1E; --result-gold: #1C1C1E;
+      --pill-bg: #2C2C2E; --group-label: #98989F;
+      --toast-bg: #2C2C2E; --toast-fg: #F2F2F7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #000000; --fg: #F2F2F7; --muted: #8E8E93;
+    --card: #1C1C1E; --separator: rgba(84,84,88,0.65);
+    --input-bg: #2C2C2E;
+    --result-bg: #B8965A; --result-fg: #1C1C1E; --result-gold: #1C1C1E;
+    --pill-bg: #2C2C2E; --group-label: #98989F;
+    --toast-bg: #2C2C2E; --toast-fg: #F2F2F7;
+    color-scheme: dark;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px; line-height: 1.4;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 40px;
+    -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:var(--bg); }
+
+  .app { max-width: 500px; margin: 0 auto; }
+
+  .nav { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); padding:12px 0 10px; text-align:center; }
+  .nav-title { font-family:'Cormorant Garamond',Georgia,serif; font-size:20px; font-weight:600; letter-spacing:0.02em; }
+  .nav-title span { color:var(--gold); }
+  .nav-sub { font-size:11px; color:var(--muted); font-weight:400; margin-top:1px; }
+
+  /* Tabs */
+  .tabs { display:flex; background:var(--pill-bg); border-radius:9px; padding:2px; margin-top:16px; }
+  .tab { flex:1; text-align:center; padding:8px 4px; border-radius:7px; font-size:13px; font-weight:500; color:var(--fg); background:transparent; border:none; cursor:pointer; transition:all 0.2s; -webkit-tap-highlight-color:transparent; }
+  .tab.active { background:var(--card); box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  .tab-page { display:none; }
+  .tab-page.active { display:block; }
+
+  .group { margin-top:24px; }
+  .group-header { display:flex; justify-content:space-between; align-items:baseline; padding:0 16px 6px; }
+  .group-label { font-size:13px; font-weight:400; text-transform:uppercase; color:var(--group-label); letter-spacing:0.02em; }
+  .group-subtotal { font-size:13px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .group-card { background:var(--card); border-radius:12px; overflow:hidden; }
+
+  .row { display:flex; align-items:center; justify-content:space-between; min-height:44px; padding:8px 16px; }
+  .row + .row { border-top:1px solid var(--separator); margin-left:16px; padding-left:0; }
+  .row-label { font-size:15px; font-weight:400; color:var(--fg); flex-shrink:0; margin-right:12px; }
+  .row-label .unit { font-size:12px; color:var(--muted); font-weight:400; }
+  .row input, .row input[type="text"] {
+    width:120px; text-align:right; padding:7px 10px; border:none; border-radius:8px;
+    background:var(--input-bg); color:var(--fg);
+    font-family:'Inter',-apple-system,system-ui,sans-serif; font-size:15px; font-weight:500;
+    font-variant-numeric:tabular-nums; outline:none; -webkit-appearance:none; appearance:none;
+    transition:box-shadow 0.15s;
+  }
+  .row input[type="text"] { width:180px; text-align:left; }
+  .row input:focus { box-shadow:0 0 0 2px rgba(184,150,90,0.35); }
+  .row input::placeholder { color:var(--muted); font-weight:400; }
+  .row select {
+    width:170px; text-align:right; padding:7px 28px 7px 10px; border:none; border-radius:8px;
+    background:var(--input-bg); color:var(--fg);
+    font-family:'Inter',-apple-system,system-ui,sans-serif; font-size:14px; font-weight:500;
+    outline:none; -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 4l3 3 3-3' fill='none' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; transition:box-shadow 0.15s;
+  }
+  .row select:focus { box-shadow:0 0 0 2px rgba(184,150,90,0.35); }
+
+  .segment-row { padding:10px 16px; }
+  .segment-row + .row { margin-left:0; padding-left:16px; }
+  .segments { display:flex; background:var(--pill-bg); border-radius:8px; padding:2px; width:100%; }
+  .seg { flex:1; text-align:center; padding:7px 4px; border-radius:7px; font-family:'Inter',-apple-system,system-ui,sans-serif; font-size:13px; font-weight:500; color:var(--fg); background:transparent; border:none; cursor:pointer; transition:all 0.2s; -webkit-tap-highlight-color:transparent; }
+  .seg.active { background:var(--pill-active-bg); color:var(--pill-active-fg); box-shadow:0 1px 4px rgba(0,0,0,0.12); }
+
+  .printer-info { padding:6px 16px 10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .printer-info + .row { margin-left:0; padding-left:16px; border-top:1px solid var(--separator); }
+  .pi-chip { font-size:11px; font-weight:500; color:var(--gold); background:var(--gold-light); padding:3px 8px; border-radius:6px; font-variant-numeric:tabular-nums; }
+
+  /* Toggle switch */
+  .toggle-wrap { display:flex; align-items:center; gap:8px; }
+  .toggle { position:relative; width:51px; height:31px; flex-shrink:0; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle .slider { position:absolute; inset:0; background:var(--input-bg); border-radius:16px; transition:0.2s; cursor:pointer; }
+  .toggle .slider::before { content:''; position:absolute; left:2px; top:2px; width:27px; height:27px; background:white; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
+  .toggle input:checked + .slider { background:var(--green); }
+  .toggle input:checked + .slider::before { transform:translateX(20px); }
+
+  /* Result */
+  .result-card { margin-top:28px; background:var(--result-bg); border-radius:16px; padding:28px 20px 24px; text-align:center; }
+  .result-eyebrow { font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--result-gold); font-weight:600; margin-bottom:4px; }
+  .result-price { font-family:'Cormorant Garamond',Georgia,serif; font-size:52px; font-weight:600; color:var(--result-fg); line-height:1; font-variant-numeric:tabular-nums; }
+  .result-price .cur { font-size:30px; vertical-align:top; opacity:0.65; margin-right:2px; }
+  .result-per-unit { font-size:13px; color:var(--result-fg); opacity:0.5; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .result-divider { height:1px; background:rgba(255,255,255,0.12); margin:18px 0 14px; }
+  .bk { display:flex; justify-content:space-between; font-size:13px; color:var(--result-fg); opacity:0.6; padding:3px 0; font-variant-numeric:tabular-nums; }
+  .bk .bv { font-weight:500; }
+  .bk.bk-total { opacity:1; font-weight:600; font-size:15px; padding-top:10px; margin-top:6px; border-top:1px solid rgba(255,255,255,0.12); }
+
+  /* Action buttons */
+  .actions { display:flex; gap:10px; margin-top:16px; }
+  .act-btn { flex:1; padding:13px 8px; border-radius:12px; border:none; font-family:'Inter',-apple-system,system-ui,sans-serif; font-size:14px; font-weight:500; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:opacity 0.15s; text-align:center; }
+  .act-btn:active { opacity:0.5; }
+  .act-save { background:var(--gold); color:#fff; }
+  .act-quote { background:var(--card); color:var(--blue); border:1px solid var(--separator) !important; }
+  .act-reset { background:var(--card); color:var(--red); border:1px solid var(--separator) !important; }
+
+  /* Toast */
+  .toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--toast-bg); color:var(--toast-fg); padding:12px 24px; border-radius:12px; font-size:14px; font-weight:500; opacity:0; transition:all 0.3s ease; z-index:20; pointer-events:none; white-space:nowrap; box-shadow:0 4px 16px rgba(0,0,0,0.2); }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* History */
+  .history-empty { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
+  .h-item { background:var(--card); border-radius:12px; padding:14px 16px; margin-top:12px; }
+  .h-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .h-name { font-size:15px; font-weight:600; }
+  .h-price { font-size:15px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .h-meta { font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .h-actions { display:flex; gap:8px; }
+  .h-btn { padding:6px 14px; border-radius:8px; border:none; font-family:'Inter',-apple-system,system-ui,sans-serif; font-size:12px; font-weight:500; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .h-btn:active { opacity:0.5; }
+  .h-load { background:var(--gold-light); color:var(--gold); }
+  .h-copy { background:var(--input-bg); color:var(--blue); }
+  .h-del { background:var(--input-bg); color:var(--red); }
+
+  @media (max-width:380px) {
+    .row input { width:100px; }
+    .row select { width:140px; font-size:13px; }
+    .row input[type="text"] { width:140px; }
+    .result-price { font-size:42px; }
+  }
+</style>
+
+<div class="app">
+  <div class="nav">
+    <div class="nav-title">Deyomi <span>Studio</span></div>
+    <div class="nav-sub">3D Print Price Calculator</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('calc')">Calculator</button>
+    <button class="tab" onclick="switchTab('history')">History</button>
+  </div>
+
+  <!-- CALCULATOR TAB -->
+  <div class="tab-page active" id="page-calc">
+
+    <!-- PRODUCT -->
+    <div class="group">
+      <div class="group-header"><span class="group-label">Product</span></div>
+      <div class="group-card">
+        <div class="row">
+          <span class="row-label">Name</span>
+          <input type="text" id="productName" placeholder="e.g. Keychain" style="text-align:left;">
+        </div>
+        <div class="row">
+          <span class="row-label">Quantity</span>
+          <input type="number" id="quantity" value="1" inputmode="numeric" min="1" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- MATERIAL -->
+    <div class="group">
+      <div class="group-header">
+        <span class="group-label">Material</span>
+        <span class="group-subtotal" id="sub-mat">₹0</span>
+      </div>
+      <div class="group-card">
+        <div class="segment-row"><div class="segments" id="filament-seg"></div></div>
+        <div class="row">
+          <span class="row-label">Weight <span class="unit">g</span></span>
+          <input type="number" id="weight" placeholder="0" inputmode="decimal" min="0" step="1">
+        </div>
+        <div class="row">
+          <span class="row-label">Price/kg <span class="unit">₹</span></span>
+          <input type="number" id="pricePerKg" placeholder="0" inputmode="decimal" min="0" step="10">
+        </div>
+      </div>
+    </div>
+
+    <!-- PRINTER -->
+    <div class="group">
+      <div class="group-header">
+        <span class="group-label">Printer</span>
+        <span class="group-subtotal" id="sub-print">₹0</span>
+      </div>
+      <div class="group-card">
+        <div class="row">
+          <span class="row-label">Model</span>
+          <select id="printerModel"><option value="">Custom</option></select>
+        </div>
+        <div class="printer-info" id="printer-info" hidden></div>
+        <div class="row">
+          <span class="row-label">Printer cost <span class="unit">₹</span></span>
+          <input type="number" id="printerCost" placeholder="0" inputmode="decimal" min="0" step="500">
+        </div>
+        <div class="row">
+          <span class="row-label">Lifespan <span class="unit">hrs</span></span>
+          <input type="number" id="printerLifespan" value="3000" inputmode="numeric" min="1" step="100">
+        </div>
+        <div class="row">
+          <span class="row-label">Depreciation <span class="unit">₹/hr</span></span>
+          <input type="number" id="depreciation" placeholder="auto" inputmode="decimal" min="0" step="0.5" readonly>
+        </div>
+        <div class="row">
+          <span class="row-label">Wattage <span class="unit">W</span></span>
+          <input type="number" id="printerWatts" value="350" inputmode="numeric" min="0" step="10">
+        </div>
+        <div class="row">
+          <span class="row-label">Print time <span class="unit">hrs</span></span>
+          <input type="number" id="printHours" placeholder="0" inputmode="decimal" min="0" step="0.5">
+        </div>
+        <div class="row">
+          <span class="row-label">Elec. rate <span class="unit">₹/unit</span></span>
+          <input type="number" id="elecRate" value="8" inputmode="decimal" min="0" step="0.5">
+        </div>
+        <div class="row">
+          <span class="row-label">Fail rate <span class="unit">%</span></span>
+          <input type="number" id="failRate" value="10" inputmode="decimal" min="0" max="100" step="5">
+        </div>
+      </div>
+    </div>
+
+    <!-- LABOR -->
+    <div class="group">
+      <div class="group-header">
+        <span class="group-label">Labor &amp; Finishing</span>
+        <span class="group-subtotal" id="sub-labor">₹0</span>
+      </div>
+      <div class="group-card">
+        <div class="row">
+          <span class="row-label">Design time <span class="unit">hrs</span></span>
+          <input type="number" id="designHours" placeholder="0" inputmode="decimal" min="0" step="0.5">
+        </div>
+        <div class="row">
+          <span class="row-label">Post-process <span class="unit">hrs</span></span>
+          <input type="number" id="postHours" placeholder="0" inputmode="decimal" min="0" step="0.5">
+        </div>
+        <div class="row">
+          <span class="row-label">Hourly rate <span class="unit">₹/hr</span></span>
+          <input type="number" id="hourlyRate" value="200" inputmode="decimal" min="0" step="10">
+        </div>
+        <div class="row">
+          <span class="row-label">Packaging <span class="unit">₹</span></span>
+          <input type="number" id="packagingCost" placeholder="0" inputmode="decimal" min="0" step="5">
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMIZATION -->
+    <div class="group">
+      <div class="group-header">
+        <span class="group-label">Customization</span>
+        <span class="group-subtotal" id="sub-cust">₹0</span>
+      </div>
+      <div class="group-card">
+        <div class="row">
+          <span class="row-label">Personal. fee <span class="unit">₹</span></span>
+          <input type="number" id="personalizationFee" placeholder="0" inputmode="decimal" min="0" step="10">
+        </div>
+        <div class="segment-row" style="border-top:1px solid var(--separator);"><div class="segments" id="complexity-seg"></div></div>
+        <div class="row">
+          <span class="row-label">Multiplier <span class="unit">x</span></span>
+          <input type="number" id="compMultiplier" value="1" inputmode="decimal" min="1" max="5" step="0.1">
+        </div>
+      </div>
+    </div>
+
+    <!-- MARGIN & FEES -->
+    <div class="group">
+      <div class="group-header">
+        <span class="group-label">Margin &amp; Fees</span>
+        <span class="group-subtotal" id="sub-margin">₹0</span>
+      </div>
+      <div class="group-card">
+        <div class="row">
+          <span class="row-label">Profit margin <span class="unit">%</span></span>
+          <input type="number" id="profitMargin" value="40" inputmode="decimal" min="0" max="500" step="5">
+        </div>
+        <div class="row">
+          <span class="row-label">Platform fee <span class="unit">%</span></span>
+          <input type="number" id="platformFee" placeholder="0" inputmode="decimal" min="0" max="100" step="1">
+        </div>
+        <div class="row">
+          <span class="row-label">Shipping <span class="unit">₹</span></span>
+          <input type="number" id="shippingCost" placeholder="0" inputmode="decimal" min="0" step="10">
+        </div>
+        <div class="row">
+          <span class="row-label">GST <span class="unit">18%</span></span>
+          <div class="toggle"><input type="checkbox" id="gstToggle"><label class="slider" for="gstToggle"></label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-card" id="result-panel">
+      <div class="result-eyebrow">Selling Price</div>
+      <div class="result-price" id="final-price"><span class="cur">₹</span>0</div>
+      <div class="result-per-unit" id="per-unit-info"></div>
+      <div class="result-divider"></div>
+      <div id="breakdown"></div>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="actions">
+      <button class="act-btn act-save" onclick="saveCalc()">Save</button>
+      <button class="act-btn act-quote" onclick="copyQuote()">Copy Quote</button>
+      <button class="act-btn act-reset" onclick="resetAll()">Reset</button>
+    </div>
+
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div class="tab-page" id="page-history">
+    <div id="history-list"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PRINTERS = [
+  { name:'Anycubic Kobra 2 Neo', type:'FDM', watts:400, price:16000, life:3000, bed:'220x220', vol:'220x220x250' },
+  { name:'Creality Ender 3 V3 SE', type:'FDM', watts:350, price:14000, life:3000, bed:'220x220', vol:'220x220x250' },
+  { name:'Creality Ender 3 S1 Pro', type:'FDM', watts:350, price:22000, life:3500, bed:'220x220', vol:'220x220x270' },
+  { name:'Bambu Lab A1 Mini', type:'FDM', watts:150, price:22000, life:4000, bed:'180x180', vol:'180x180x180' },
+  { name:'Bambu Lab P1S', type:'FDM', watts:350, price:60000, life:5000, bed:'256x256', vol:'256x256x256' },
+  { name:'Creality K1', type:'FDM', watts:350, price:28000, life:4000, bed:'220x220', vol:'220x220x250' },
+  { name:'Elegoo Neptune 4', type:'FDM', watts:350, price:16000, life:3000, bed:'225x225', vol:'225x225x265' },
+  { name:'Prusa MK4', type:'FDM', watts:200, price:65000, life:6000, bed:'250x210', vol:'250x210x220' },
+  { name:'Anycubic Photon Mono M5s', type:'Resin', watts:60, price:28000, life:2500, bed:'218x123', vol:'218x123x200' },
+  { name:'Elegoo Saturn 3 Ultra', type:'Resin', watts:75, price:38000, life:2500, bed:'218x123', vol:'218x123x260' },
+];
+const FILAMENTS = [
+  { name:'PLA', price:1200 }, { name:'ABS', price:1400 },
+  { name:'PETG', price:1500 }, { name:'TPU', price:2200 }, { name:'Resin', price:2800 },
+];
+const COMPLEX = [
+  { name:'Simple', m:1 }, { name:'Medium', m:1.2 }, { name:'Complex', m:1.5 },
+];
+
+let activeFil = -1, activeComp = 0, toastTimer;
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', (t==='calc'?0:1)===i));
+  document.getElementById('page-calc').classList.toggle('active', t==='calc');
+  document.getElementById('page-history').classList.toggle('active', t==='history');
+  if (t==='history') renderHistory();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function buildPrinterSelect() {
+  const sel = document.getElementById('printerModel');
+  PRINTERS.forEach((p,i) => { const o = document.createElement('option'); o.value=i; o.textContent=p.name; sel.appendChild(o); });
+  sel.addEventListener('change', onPrinterChange);
+}
+function onPrinterChange() {
+  const idx = document.getElementById('printerModel').value;
+  const info = document.getElementById('printer-info');
+  const dep = document.getElementById('depreciation');
+  if (idx === '') {
+    info.hidden=true; dep.removeAttribute('readonly'); dep.placeholder='0'; dep.value='';
+    document.getElementById('printerCost').value=''; document.getElementById('printerLifespan').value='3000'; document.getElementById('printerWatts').value='';
+    calc(); return;
+  }
+  const p = PRINTERS[idx];
+  document.getElementById('printerCost').value=p.price; document.getElementById('printerLifespan').value=p.life;
+  document.getElementById('printerWatts').value=p.watts; dep.setAttribute('readonly',true); dep.placeholder='auto';
+  info.hidden=false;
+  info.innerHTML = '<span class="pi-chip">'+p.type+'</span><span class="pi-chip">'+p.watts+'W</span><span class="pi-chip">Bed '+p.bed+'</span><span class="pi-chip">Vol '+p.vol+'</span>';
+  updateDep(); calc();
+}
+function updateDep() {
+  const c=v('printerCost'), l=v('printerLifespan')||3000;
+  document.getElementById('depreciation').value = (c/l).toFixed(1);
+}
+
+function buildSegs() {
+  const fs = document.getElementById('filament-seg');
+  FILAMENTS.forEach((f,i) => {
+    const b = document.createElement('button'); b.className='seg'; b.textContent=f.name;
+    b.onclick = () => { activeFil=i; document.getElementById('pricePerKg').value=f.price; paintSegs(); calc(); };
+    fs.appendChild(b);
+  });
+  const cs = document.getElementById('complexity-seg');
+  COMPLEX.forEach((c,i) => {
+    const b = document.createElement('button'); b.className='seg'+(i===0?' active':''); b.textContent=c.name;
+    b.onclick = () => { activeComp=i; document.getElementById('compMultiplier').value=c.m; paintSegs(); calc(); };
+    cs.appendChild(b);
+  });
+}
+function paintSegs() {
+  document.querySelectorAll('#filament-seg .seg').forEach((b,i) => b.classList.toggle('active',i===activeFil));
+  document.querySelectorAll('#complexity-seg .seg').forEach((b,i) => b.classList.toggle('active',i===activeComp));
+}
+
+function v(id) { return parseFloat(document.getElementById(id).value)||0; }
+function fmt(n) { return '₹'+Math.round(n).toLocaleString('en-IN'); }
+
+let lastCalcResult = {};
+
+function calc() {
+  const qty = Math.max(1, Math.round(v('quantity')));
+  const wt = v('weight'), pkg = v('pricePerKg');
+  const matCost = (wt/1000)*pkg;
+
+  const hrs = v('printHours'), w = v('printerWatts'), er = v('elecRate')||8;
+  const elec = (w/1000)*hrs*er;
+  const dep = v('depreciation')*hrs;
+  const printCost = elec+dep;
+
+  const failPct = v('failRate')/100;
+  const failCost = (matCost+printCost)*failPct;
+
+  const dh = v('designHours'), ph = v('postHours'), hr = v('hourlyRate');
+  const labor = (dh+ph)*hr;
+  const pack = v('packagingCost');
+  const laborTot = labor+pack;
+
+  const pf = v('personalizationFee');
+  const cm = v('compMultiplier')||1;
+  const base = (matCost+printCost+failCost+laborTot+pf)*cm;
+
+  const mp = v('profitMargin')/100;
+  const pp = v('platformFee')/100;
+  const ship = v('shippingCost');
+  const gst = document.getElementById('gstToggle').checked;
+
+  const wm = base*(1+mp);
+  const wp = pp>0 ? wm/(1-pp) : wm;
+  const beforeGst = wp+ship;
+  const gstAmt = gst ? beforeGst*0.18 : 0;
+  const unitPrice = beforeGst+gstAmt;
+  const totalPrice = unitPrice*qty;
+
+  const marginAmt = wm-base;
+  const platAmt = wp-wm;
+
+  document.getElementById('sub-mat').textContent = fmt(matCost);
+  document.getElementById('sub-print').textContent = fmt(printCost+failCost);
+  document.getElementById('sub-labor').textContent = fmt(laborTot);
+  document.getElementById('sub-cust').textContent = fmt(pf*cm);
+  document.getElementById('sub-margin').textContent = fmt(marginAmt+platAmt+ship+gstAmt);
+
+  document.getElementById('final-price').innerHTML = '<span class="cur">₹</span>'+Math.round(totalPrice).toLocaleString('en-IN');
+
+  const pui = document.getElementById('per-unit-info');
+  if (qty>1) pui.textContent = fmt(unitPrice)+' per unit × '+qty;
+  else pui.textContent = '';
+
+  const bd = document.getElementById('breakdown');
+  bd.innerHTML = '';
+  const rows = [
+    ['Material', matCost*cm],
+    ['Electricity ('+(w/1000*hrs).toFixed(2)+' units)', elec*cm],
+    ['Printer depreciation', dep*cm],
+    ['Fail buffer ('+v('failRate')+'%)', failCost*cm],
+    ['Labor & finishing', laborTot*cm],
+    ['Customization', pf*cm],
+    ['Profit ('+v('profitMargin')+'%)', marginAmt],
+  ];
+  if (pp>0) rows.push(['Platform fee ('+v('platformFee')+'%)', platAmt]);
+  if (ship>0) rows.push(['Shipping', ship]);
+  if (gst) rows.push(['GST (18%)', gstAmt]);
+  if (qty>1) rows.push(['Qty × '+qty, totalPrice]);
+
+  rows.forEach(([l,val]) => {
+    const d = document.createElement('div'); d.className='bk';
+    d.innerHTML = '<span>'+l+'</span><span class="bv">'+fmt(val)+'</span>';
+    bd.appendChild(d);
+  });
+  const tot = document.createElement('div'); tot.className='bk bk-total';
+  tot.innerHTML = '<span>Total</span><span class="bv">'+fmt(totalPrice)+'</span>';
+  bd.appendChild(tot);
+
+  lastCalcResult = { unitPrice, totalPrice, qty, base, marginAmt, gstAmt, matCost:matCost*cm, printCost:(printCost+failCost)*cm, laborTot:laborTot*cm };
+}
+
+function getFormData() {
+  const data = {};
+  document.querySelectorAll('#page-calc input, #page-calc select').forEach(el => {
+    if (el.type==='checkbox') data[el.id]=el.checked;
+    else data[el.id]=el.value;
+  });
+  data._activeFil = activeFil;
+  data._activeComp = activeComp;
+  return data;
+}
+function loadFormData(data) {
+  Object.keys(data).forEach(k => {
+    if (k.startsWith('_')) return;
+    const el = document.getElementById(k);
+    if (!el) return;
+    if (el.type==='checkbox') el.checked=data[k];
+    else el.value=data[k];
+  });
+  if (data._activeFil!==undefined) activeFil=data._activeFil;
+  if (data._activeComp!==undefined) activeComp=data._activeComp;
+  paintSegs();
+  if (data.printerModel) onPrinterChange();
+  else { document.getElementById('printer-info').hidden=true; updateDep(); }
+  calc();
+}
+
+function saveCalc() {
+  const name = document.getElementById('productName').value.trim();
+  if (!name) { showToast('Enter a product name first'); return; }
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('deyomi_history')||'[]'); } catch(e){}
+  const entry = {
+    id: Date.now(),
+    name: name,
+    date: new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}),
+    unitPrice: lastCalcResult.unitPrice||0,
+    totalPrice: lastCalcResult.totalPrice||0,
+    qty: Math.max(1,Math.round(v('quantity'))),
+    printer: document.getElementById('printerModel').selectedOptions[0]?.textContent||'Custom',
+    filament: activeFil>=0 ? FILAMENTS[activeFil].name : 'Custom',
+    formData: getFormData(),
+  };
+  history.unshift(entry);
+  if (history.length>50) history=history.slice(0,50);
+  try { localStorage.setItem('deyomi_history', JSON.stringify(history)); } catch(e){}
+  showToast('Saved: '+name);
+}
+
+function copyQuote() {
+  const name = document.getElementById('productName').value.trim()||'3D Print';
+  const qty = Math.max(1,Math.round(v('quantity')));
+  const r = lastCalcResult;
+  let q = '*Deyomi Studio — Price Quote*\n\n';
+  q += 'Product: '+name+'\n';
+  q += 'Quantity: '+qty+'\n';
+  q += 'Price per unit: '+fmt(r.unitPrice||0)+'\n';
+  if (qty>1) q += 'Total: '+fmt(r.totalPrice||0)+'\n';
+  q += '\n_Breakdown:_\n';
+  q += 'Material: '+fmt(r.matCost||0)+'\n';
+  q += 'Printing: '+fmt(r.printCost||0)+'\n';
+  q += 'Labor: '+fmt(r.laborTot||0)+'\n';
+  q += 'Profit: '+fmt(r.marginAmt||0)+'\n';
+  if (r.gstAmt>0) q += 'GST (18%): '+fmt(r.gstAmt)+'\n';
+  q += '\nThank you for choosing Deyomi Studio!';
+
+  try { navigator.clipboard.writeText(q).then(() => showToast('Quote copied!')).catch(() => fallbackCopy(q)); }
+  catch(e) { fallbackCopy(q); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea'); ta.value=text;
+  ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta);
+  ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  showToast('Quote copied!');
+}
+
+function renderHistory() {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('deyomi_history')||'[]'); } catch(e){}
+  const el = document.getElementById('history-list');
+  if (!history.length) { el.innerHTML='<div class="history-empty">No saved calculations yet.<br>Use the calculator and tap Save.</div>'; return; }
+  el.innerHTML = history.map(h => '<div class="h-item" data-id="'+h.id+'">'
+    +'<div class="h-top"><span class="h-name">'+esc(h.name)+'</span><span class="h-price">'+fmt(h.unitPrice)+'</span></div>'
+    +'<div class="h-meta"><span>'+h.date+'</span><span>Qty: '+h.qty+'</span><span>'+esc(h.printer)+'</span><span>'+esc(h.filament)+'</span></div>'
+    +'<div class="h-actions">'
+    +'<button class="h-btn h-load" onclick="loadEntry('+h.id+')">Load</button>'
+    +'<button class="h-btn h-copy" onclick="copyEntry('+h.id+')">Quote</button>'
+    +'<button class="h-btn h-del" onclick="delEntry('+h.id+')">Delete</button>'
+    +'</div></div>').join('');
+}
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function loadEntry(id) {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('deyomi_history')||'[]'); } catch(e){}
+  const h = history.find(x=>x.id===id);
+  if (!h||!h.formData) return;
+  loadFormData(h.formData);
+  switchTab('calc');
+  showToast('Loaded: '+h.name);
+}
+function copyEntry(id) {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('deyomi_history')||'[]'); } catch(e){}
+  const h = history.find(x=>x.id===id);
+  if (!h) return;
+  loadFormData(h.formData);
+  calc();
+  copyQuote();
+}
+function delEntry(id) {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('deyomi_history')||'[]'); } catch(e){}
+  history = history.filter(x=>x.id!==id);
+  try { localStorage.setItem('deyomi_history', JSON.stringify(history)); } catch(e){}
+  renderHistory();
+  showToast('Deleted');
+}
+
+function resetAll() {
+  document.getElementById('printerModel').value='';
+  document.getElementById('printer-info').hidden=true;
+  document.getElementById('depreciation').removeAttribute('readonly');
+  document.getElementById('depreciation').placeholder='0';
+  document.getElementById('gstToggle').checked=false;
+  document.querySelectorAll('#page-calc input').forEach(inp => {
+    if (inp.type==='checkbox') return;
+    const def = {printerWatts:'350',depreciation:'',hourlyRate:'200',profitMargin:'40',elecRate:'8',compMultiplier:'1',printerLifespan:'3000',printerCost:'',quantity:'1',failRate:'10'};
+    inp.value = def[inp.id]||'';
+  });
+  activeFil=-1; activeComp=0; paintSegs(); calc();
+}
+
+buildPrinterSelect(); buildSegs();
+document.getElementById('printerCost').addEventListener('input', ()=>{updateDep();calc();});
+document.getElementById('printerLifespan').addEventListener('input', ()=>{updateDep();calc();});
+document.getElementById('gstToggle').addEventListener('change', calc);
+document.querySelectorAll('#page-calc input').forEach(el => el.addEventListener('input', calc));
+document.querySelectorAll('#page-calc select').forEach(el => el.addEventListener('change', calc));
+calc();
+</script>
